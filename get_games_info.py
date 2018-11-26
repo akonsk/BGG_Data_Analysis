@@ -46,12 +46,14 @@ def get_langDep_poll_results(item):
     # returns a list of number of voters for each category,
     # each ordered in Best,Recommended,Not Recommended
     poll = item('poll')[2]
+    poll_results = []
     if poll['name'] == 'language_dependence':
         result_items = poll('result')
         poll_results = [it['numvotes'] for it in result_items]
         assert(len(poll_results) == 5,'poll_results length is less than 5')
-    else:
-        poll_results = ['Nan']*5
+
+    poll_results += ['NaN']*(5-len(poll_results))
+
     return poll_results
 
 
