@@ -3,10 +3,19 @@ import numpy as np
 import pylab as plt
 from mpl_toolkits.mplot3d import Axes3D
 import mplcursors
+from get_games_info import mine_games_info
+import os
 
-data_path = 'C:/Users/kfir/PycharmProjects/untitled/games.csv'
+
+MINE_INFO_FROM_BGG = 0
+path_gameIDs = os.path.join(os.getcwd(), 'bgg_gamelist.csv')
+if MINE_INFO_FROM_BGG:
+    data_path = mine_games_info(path_gameIDs)
+else:
+    data_path = 'C:/Users/kfir/PycharmProjects/BGG_Data_Analysis/games.csv'
+
 df = pd.read_csv(data_path)
-df['name']=df['name'].map(lambda a: a[2:-1])
+
 # add percent to players num poll
 for i in range(2,11):
     voters = df.as_matrix(['poll_{}p_B'.format(i),
