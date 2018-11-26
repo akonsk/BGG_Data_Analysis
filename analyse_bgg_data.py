@@ -14,7 +14,7 @@ if MINE_INFO_FROM_BGG:
 else:
     data_path = 'C:/Users/kfir/PycharmProjects/BGG_Data_Analysis/games.csv'
 
-df = pd.read_csv(data_path)
+df = pd.read_csv(data_path,index_col=0)
 
 # add percent to players num poll
 for i in range(2,11):
