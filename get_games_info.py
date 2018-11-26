@@ -41,6 +41,20 @@ def get_numPlayers_poll_results(item):
 
     return poll_results
 
+
+def get_langDep_poll_results(item):
+    # returns a list of number of voters for each category,
+    # each ordered in Best,Recommended,Not Recommended
+    poll = item('poll')[2]
+    if poll['name'] == 'language_dependence':
+        result_items = poll('result')
+        poll_results = [it['numvotes'] for it in result_items]
+        assert(len(poll_results) == 5,'poll_results length is less than 5')
+    else:
+        poll_results = ['Nan']*5
+    return poll_results
+
+
 def mine_games_info(path_ids=''):
 
     base = 'http://www.boardgamegeek.com/xmlapi2/thing?id={}&stats=1'
@@ -51,22 +65,13 @@ def mine_games_info(path_ids=''):
     ids = bgg_gamelist['id'].tolist()
 
     split = 100
-    fname = os.path.join(os.getcwd(),'games.csv')
-    df = pd.DataFrame(columns=('id', 'type', 'name', 'yearpublished', 'minplayers', 'maxplayers', 'playingtime',
+    fname = os.path.join(os.getcwd(), 'games.csv')
+    df = pd.DataFrame(columns=['id', 'type', 'name', 'yearpublished', 'minplayers', 'maxplayers', 'playingtime',
                                'minplaytime', 'maxplaytime', 'minage', 'users_rated', 'average_rating',
                                'bayes_average_rating', 'total_owners', 'total_traders', 'total_wanters',
-                               'total_wishers', 'total_comments', 'total_weights', 'average_weight',
-                               'poll_1p_B','poll_1p_R','poll_1p_NR',
-                               'poll_2p_B', 'poll_2p_R', 'poll_2p_NR',
-                               'poll_3p_B', 'poll_3p_R', 'poll_3p_NR',
-                               'poll_4p_B', 'poll_4p_R', 'poll_4p_NR',
-                               'poll_5p_B', 'poll_5p_R', 'poll_5p_NR',
-                               'poll_6p_B', 'poll_6p_R', 'poll_6p_NR',
-                               'poll_7p_B', 'poll_7p_R', 'poll_7p_NR',
-                               'poll_8p_B', 'poll_8p_R', 'poll_8p_NR',
-                               'poll_9p_B', 'poll_9p_R', 'poll_9p_NR',
-                               'poll_10p_B', 'poll_10p_R', 'poll_10p_NR',
-                               )
+                               'total_wishers', 'total_comments', 'total_weights', 'average_weight']
+                            + ['poll_{}p_{}'.format(n, cat) for n in range(1, 11) for cat in ['B', 'R', 'NR']]
+                            + ['LD_num_votes_{}'.format(i) for i in range(5)]
                       )
     for i in range(0, len(ids), split):
         url = base.format(','.join([str(id) for id in ids[i:i+split]]))
@@ -98,11 +103,11 @@ def mine_games_info(path_ids=''):
             numweights = get_val(item.statistics.ratings, 'numweights')
             avgweight = get_val(item.statistics.ratings, 'averageweight')
             numPlayers_poll_results = get_numPlayers_poll_results(item)
-
+            langDep_poll_results = get_langDep_poll_results(item)
 
             df.loc[i+i1]=[gid, gtype, gname, gyear, gmin, gmax, gplay, gminplay, gmaxplay, gminage,
                              usersrated, avg, bayesavg, owners, traders, wanters, wishers, numcomments,
-                             numweights, avgweight] + numPlayers_poll_results
+                             numweights, avgweight] + numPlayers_poll_results + langDep_poll_results
 
             time.sleep(max(0, (1 - (time.time() - t))))
 
@@ -112,4 +117,5 @@ def mine_games_info(path_ids=''):
 
 
 if __name__ == '__main__':
-    p = mine_games_info()
+    path_gameIDs = os.path.join(os.getcwd(), 'bgg_gamelist.csv')
+    p = mine_games_info(path_gameIDs)

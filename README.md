@@ -1,5 +1,5 @@
 # BGG_Data_Analysis
-this is a short code that:
+this is a short python3 code that:
 1. scraps game ids from bgg
 2. fetch their data through the xml API
 3. make simple analysis to aid finding the most suitable game for a specific number of players

@@ -12,7 +12,7 @@ path_gameIDs = os.path.join(os.getcwd(), 'bgg_gamelist.csv')
 if MINE_INFO_FROM_BGG:
     data_path = mine_games_info(path_gameIDs)
 else:
-    data_path = 'C:/Users/kfir/PycharmProjects/BGG_Data_Analysis/games.csv'
+    data_path = os.path.join(os.getcwd(),'games.csv')
 
 df = pd.read_csv(data_path,index_col=0)
 
@@ -31,32 +31,37 @@ for i in range(2,11):
 # plt.figure()
 # plt.bar(l[:-1],h,l[1]-l[0])
 
-##### N players plots ######
-def n_players_plot(N,df):
+# #### N players plots ######
+def n_players_plot(df,N,cat='b'):
+    '''
+    plots a graph of games' votes for "best/nr for n players"  Vs. bayes_average_rating
+    :param df: dataframe
+    :param N: number of players
+    :param cat: b - best, nr - not recommended
+    :return:
+    '''
+    xlabel = 'bayes_average_rating'
+    ylabel = '{}p_{}_percent'.format(N, cat)
     hover = True  # label show on hovering
     Nvoters_threshold=100
-    cat='b'
+
 
     # filter below Nvoters (and Nans)
     games = df.loc[df['{}p_num_voters'.format(N)] > Nvoters_threshold]
     games = games.reset_index(drop=True)
 
-    i_nr = np.argsort(games['{}p_nr_percent'.format(N)].tolist())
+    i_nr = np.argsort(games[ylabel].tolist())
     print(games.loc[i_nr[:10], ['name']])
 
-    games.plot.scatter('bayes_average_rating','{}p_{}_percent'.format(N,cat),
-                       marker='x', s=10
-                       )
+    games.plot.scatter(xlabel, ylabel, marker='x', s=10)
     labels = games['name'].tolist()
     mplcursors.cursor(hover=hover).connect(
         "add", lambda sel: sel.annotation.set_text(labels[sel.target.index]))
 
-    plt.xlabel('bayes_average_rating'.format(N))
-    plt.ylabel('{}p_{}_percent'.format(N,cat))
     plt.title('{} players games'.format(N))
 
 for n in [4]:
-    n_players_plot(n, df)
+    n_players_plot(df, n, cat='b')
 
 ### 2/4 players
 PLOT=0
@@ -66,9 +71,6 @@ if PLOT:
     df2 = df[(df['2p_num_voters'] > Nvoters_threshold) & (df['4p_num_voters'] > Nvoters_threshold)]
     df2 = df2.reset_index(drop=True)
     plt.figure()
-    # mat=df.as_matrix(['2p_nr_percent','4p_nr_percent'])
-    # df2=df.loc[(~np.isnan(mat)).all(1),['name','2p_nr_percent','4p_nr_percent']]
-    # df2=df.reset_index(drop=True)
     plt.scatter(df2['2p_nr_percent'].astype(float), df2['4p_nr_percent'].astype(float),
                 marker='x', s=10
                 )
@@ -113,14 +115,14 @@ if PLOT:
     print(df2.loc[ind[:10],['name','bayes_average_rating']])
 
 ### print list
-df1=df[(df['2p_b_percent']>0.4 )&
-       (df['maxplaytime']<90) &
-       (df['yearpublished']>2012)
+df1=df[(df['2p_b_percent'] > 0.4)&
+       (df['maxplaytime'] < 90) &
+       (df['yearpublished'] > 2012)
 ]
 df1.reset_index(drop=True)
 print(
     df1.sort_values('average_rating')\
-          [['name','average_rating']]\
+          [['name', 'average_rating']]\
           [-15:]
 )
 
