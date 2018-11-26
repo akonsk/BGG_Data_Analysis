@@ -41,8 +41,8 @@ def n_players_plot(N,df):
     games = df.loc[df['{}p_num_voters'.format(N)] > Nvoters_threshold]
     games = games.reset_index(drop=True)
 
-    # i_nr = np.argsort(games['{}p_nr_percent'.format(N)].tolist())
-    # print(games.loc[i_nr[:10], ['name']])
+    i_nr = np.argsort(games['{}p_nr_percent'.format(N)].tolist())
+    print(games.loc[i_nr[:10], ['name']])
 
     games.plot.scatter('bayes_average_rating','{}p_{}_percent'.format(N,cat),
                        marker='x', s=10
@@ -100,8 +100,8 @@ if PLOT:
     plt.title('2-4 players games')
 
     ### list of games that are most suitable to 2-5 players
-    num_p=[3,4]
-    Nvoters_threshold=100
+    num_p = range(2,6)
+    Nvoters_threshold = 100
     df2 = df[
             np.array([(df['%ip_num_voters' % i] > Nvoters_threshold).tolist() for i in num_p]).all(0)
     ]
