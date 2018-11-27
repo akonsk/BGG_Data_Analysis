@@ -39,6 +39,8 @@ def get_numPlayers_poll_results(item):
     poll_results += ['NaN']*(10*3-len(poll_results))
     poll_results = poll_results[:10*3]
 
+    poll_results += [poll_numPlayers_item('totalvotes')]
+
     return poll_results
 
 
@@ -73,6 +75,7 @@ def mine_games_info(path_ids=''):
                                'bayes_average_rating', 'total_owners', 'total_traders', 'total_wanters',
                                'total_wishers', 'total_comments', 'total_weights', 'average_weight']
                             + ['poll_{}p_{}'.format(n, cat) for n in range(1, 11) for cat in ['B', 'R', 'NR']]
+                            + ['totalvotes_numPlayers']
                             + ['LD_num_votes_{}'.format(i) for i in range(5)]
                       )
     for i in range(0, len(ids), split):
