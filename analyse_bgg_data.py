@@ -26,10 +26,21 @@ for i in range(2,11):
     df['{}p_nr_percent'.format(i)] = voters[:, 2] / (voters.sum(1))
     df['{}p_num_voters'.format(i)] = voters.sum(1)
 
+# add Language dependency average
+mat = df.loc[:, ['LD_num_votes_%i' % i for i in range(5)]].as_matrix()
+df['LD_average'] = (mat * np.array([np.arange(5) + 1])).sum(1) / mat.sum(1)
+
+
 # n_v=df1.as_matrix(['num_voters'])
 # h,l=np.histogram(n_v,50)
 # plt.figure()
 # plt.bar(l[:-1],h,l[1]-l[0])
+numeric_cats = ['yearpublished','maxplaytime','users_rated',\
+                'average_rating','total_wanters','total_weights',
+                 'average_weight'] + \
+               ['poll_{}p_{}'.format(n, cat) for n in range(1, 11) for cat in ['B', 'R', 'NR']]\
+             + ['totalvotes_numPlayers'] \
+             + ['LD_num_votes_{}'.format(i) for i in range(5)]
 
 # #### N players plots ######
 def n_players_plot(df,N,cat='b'):
@@ -63,9 +74,10 @@ def n_players_plot(df,N,cat='b'):
 for n in [4]:
     n_players_plot(df, n, cat='b')
 
-### 2/4 players
+
 PLOT=0
 if PLOT:
+    ### 2/4 players
     # filter below Nvoters (and Nans)
     Nvoters_threshold=100
     df2 = df[(df['2p_num_voters'] > Nvoters_threshold) & (df['4p_num_voters'] > Nvoters_threshold)]
@@ -82,6 +94,7 @@ if PLOT:
     plt.ylabel('4p_nr')
     plt.title('2/4 players games')
 
+if PLOT:
     # 2-4 players 3D
     Nvoters_threshold=100
     df2 = df[(df['2p_num_voters'] > Nvoters_threshold) & (df['3p_num_voters'] > Nvoters_threshold) & (df['4p_num_voters'] > Nvoters_threshold)]
@@ -101,6 +114,7 @@ if PLOT:
     ax.set_zlabel('4p_nr')
     plt.title('2-4 players games')
 
+if PLOT:
     ### list of games that are most suitable to 2-5 players
     num_p = range(2,6)
     Nvoters_threshold = 100
@@ -113,6 +127,37 @@ if PLOT:
     d = np.sqrt((mat**2).sum(1))
     ind = np.argsort(d)
     print(df2.loc[ind[:10],['name','bayes_average_rating']])
+
+if PLOT:
+    df.plot.scatter('average_rating', 'average_weight',
+                    marker='x', s=10)
+    labels = df['name']
+    mplcursors.cursor(hover=True).connect(
+        "add", lambda sel: sel.annotation.set_text(labels[sel.target.index]))
+    plt.title('average_weight Vs average_rating')
+
+if PLOT:
+    mat = df.loc[:, ['LD_num_votes_%i' % i for i in range(5)]].as_matrix()
+    df['LD_average'] = (mat * np.array([np.arange(5) + 1])).sum(1) / mat.sum(1)
+    df.plot.scatter('average_rating', 'LD_average',
+                    marker='x', s=10, c=mat.sum(1), cmap='jet')
+    labels = df['name']
+    mplcursors.cursor(hover=True).connect(
+        "add", lambda sel: sel.annotation.set_text(labels[sel.target.index]))
+
+# correlation
+cats=['yearpublished','maxplaytime','users_rated',\
+      'average_rating','average_weight', 'LD_average'] + \
+     ['poll_{}p_{}'.format(n, cat) for n in range(1, 7) for cat in ['NR']]
+cor=df.loc[:,cats].corr(min_periods=30)
+f,ax=plt.subplots()
+plt.imshow(cor,interpolation='none')
+plt.colorbar()
+ax.set_xticks(range(len(cats)))
+ax.set_xticklabels(cats,rotation=90)
+ax.set_yticks(range(len(cats)))
+ax.set_yticklabels(cats,rotation=0)
+
 
 ### print list
 df1=df[(df['2p_b_percent'] > 0.4)&
