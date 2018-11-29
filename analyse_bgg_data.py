@@ -57,7 +57,9 @@ def n_players_plot(df, num_p, metric='geo', Nvoters_threshold = 100):
         num_p = [num_p]
 
     df2 = df[
-            np.array([(df['%ip_num_voters' % i] > Nvoters_threshold).tolist() for i in num_p]).all(0)
+            np.array([(df['%ip_num_voters' % i] > Nvoters_threshold).tolist()
+                      for i in num_p]
+                     ).all(0)
             ].reset_index(drop=True)
 
     if metric == 'euc':
@@ -110,12 +112,11 @@ if PLOT:
     ### 2/4 players
     # filter below Nvoters (and Nans)
     Nvoters_threshold=100
-    df2 = df[(df['2p_num_voters'] > Nvoters_threshold) & (df['4p_num_voters'] > Nvoters_threshold)]
-    df2 = df2.reset_index(drop=True)
-    plt.figure()
-    plt.scatter(df2['2p_nr_percent'].astype(float), df2['4p_nr_percent'].astype(float),
-                marker='x', s=10
-                )
+    df2 = df[(df['2p_num_voters'] > Nvoters_threshold)
+             & (df['4p_num_voters'] > Nvoters_threshold)
+             ].reset_index(drop=True)
+    df2.plot.scatter('2p_nr_percent', '4p_nr_percent',
+                     marker='x', s=10)
     labels = df2['name']
     mplcursors.cursor(hover=True).connect(
         "add", lambda sel: sel.annotation.set_text(labels[sel.target.index]))
@@ -127,14 +128,18 @@ if PLOT:
 if PLOT:
     # 2-4 players 3D
     Nvoters_threshold=100
-    df2 = df[(df['2p_num_voters'] > Nvoters_threshold) & (df['3p_num_voters'] > Nvoters_threshold) & (df['4p_num_voters'] > Nvoters_threshold)]
-    df2 = df2.reset_index(drop=True)
+    df2 = df[(df['2p_num_voters'] > Nvoters_threshold)
+             & (df['3p_num_voters'] > Nvoters_threshold)
+             & (df['4p_num_voters'] > Nvoters_threshold)
+             ].reset_index(drop=True)
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(df2['2p_nr_percent'].astype(float), df2['3p_nr_percent'].astype(float), df2['4p_nr_percent'].astype(float),
-                marker='x', s=10
-                )
+    ax.scatter(df2['2p_nr_percent'].astype(float),
+               df2['3p_nr_percent'].astype(float),
+               df2['4p_nr_percent'].astype(float),
+               marker='x', s=10
+               )
     labels = df2['name']
     mplcursors.cursor(hover=True).connect(
         "add", lambda sel: sel.annotation.set_text(labels[sel.target.index]))
