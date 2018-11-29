@@ -43,36 +43,66 @@ numeric_cats = ['yearpublished','maxplaytime','users_rated',\
              + ['LD_num_votes_{}'.format(i) for i in range(5)]
 
 # #### N players plots ######
-def n_players_plot(df,N,cat='b'):
+def n_players_plot(df, num_p, metric='geo', Nvoters_threshold = 100):
     '''
-    plots a graph of games' votes for "best/nr for n players"  Vs. bayes_average_rating
+    calculate scores for each game according to players best and average rating.
+    if a single number of players - plots a graph of games' votes for
+    "best/nr [geo,euc] for n players"  Vs. bayes_average_rating, with
+    score map as background.
     :param df: dataframe
-    :param N: number of players
-    :param cat: b - best, nr - not recommended
+    :param num_p: number of players
     :return:
     '''
-    xlabel = 'bayes_average_rating'
-    ylabel = '{}p_{}_percent'.format(N, cat)
-    hover = True  # label show on hovering
-    Nvoters_threshold=100
+    if not isinstance(num_p,list):
+        num_p = [num_p]
 
+    df2 = df[
+            np.array([(df['%ip_num_voters' % i] > Nvoters_threshold).tolist() for i in num_p]).all(0)
+            ].reset_index(drop=True)
 
-    # filter below Nvoters (and Nans)
-    games = df.loc[df['{}p_num_voters'.format(N)] > Nvoters_threshold]
-    games = games.reset_index(drop=True)
+    if metric == 'euc':
+        mat = df2.as_matrix(['%ip_nr_percent' % i for i in num_p])
+        d = np.sqrt((mat**2).sum(1))
+        ind = np.argsort(d)
+        print(df2.loc[ind[:10],['name','bayes_average_rating']])
+    elif metric == 'geo':
+        # include rating
+        mat = df2.as_matrix(['%ip_b_percent' % i for i in num_p])
+        # mat = 1 - mat # needed if using nr
+        rating = df2['bayes_average_rating'].values
+        if len(mat.shape) == 2:
+            rating = rating.reshape([-1, 1])
 
-    i_nr = np.argsort(games[ylabel].tolist())
-    print(games.loc[i_nr[:10], ['name']])
+        mat = np.concatenate([mat, rating], 1)
+        geo_mean = np.prod(mat, 1) ** (1 / mat.shape[1])
+        ind = np.argsort(geo_mean)
+        n2print = 100
+        df3 = df2.iloc[ind[-n2print:]].reset_index(drop=True)
+        print(df3.loc[:, ['name', 'bayes_average_rating']])
 
-    games.plot.scatter(xlabel, ylabel, marker='x', s=10)
-    labels = games['name'].tolist()
-    mplcursors.cursor(hover=hover).connect(
-        "add", lambda sel: sel.annotation.set_text(labels[sel.target.index]))
+        if mat.shape[1]==2:  # plot with score map
+            df3.plot.scatter('bayes_average_rating', '%ip_b_percent' % num_p[0],
+                             c='k', marker='o')
+                             #c=geo_mean[ind[-n2print:]], cmap='jet')
+            labels = df3['name']
+            mplcursors.cursor(hover=True).connect(
+                "add", lambda sel: sel.annotation.set_text(labels[sel.target.index]))
 
-    plt.title('{} players games'.format(N))
+            xmin = df3['bayes_average_rating'].min()
+            xmax = df3['bayes_average_rating'].max()
+            ymin = df3['%ip_b_percent' % num_p[0]].min()
+            ymax = df3['%ip_b_percent' % num_p[0]].max()
+            x = np.linspace(xmin, xmax, 100)
+            y = np.linspace(ymax, ymin, 100)
+            X, Y = np.meshgrid(x, y)
+            z3 = np.sqrt(X * Y)
+            plt.imshow(z3, cmap='jet',
+                       extent=[xmin, xmax, ymin, ymax],
+                       aspect=(xmax - xmin) / (ymax - ymin))
+            plt.title('%ip games' % num_p[0])
 
-for n in [4]:
-    n_players_plot(df, n, cat='b')
+for n in [2]:
+    n_players_plot(df, n)
 
 
 PLOT=0
@@ -115,20 +145,7 @@ if PLOT:
     plt.title('2-4 players games')
 
 if PLOT:
-    ### list of games that are most suitable to 2-5 players
-    num_p = range(2,6)
-    Nvoters_threshold = 100
-    df2 = df[
-            np.array([(df['%ip_num_voters' % i] > Nvoters_threshold).tolist() for i in num_p]).all(0)
-    ]
-    df2 = df2.reset_index(drop=True)
-
-    mat = df2.as_matrix(['%ip_nr_percent' % i for i in num_p])
-    d = np.sqrt((mat**2).sum(1))
-    ind = np.argsort(d)
-    print(df2.loc[ind[:10],['name','bayes_average_rating']])
-
-if PLOT:
+    # average_weight Vs average_rating
     df.plot.scatter('average_rating', 'average_weight',
                     marker='x', s=10)
     labels = df['name']
@@ -137,6 +154,7 @@ if PLOT:
     plt.title('average_weight Vs average_rating')
 
 if PLOT:
+    # Language dependence Vs average_rating
     mat = df.loc[:, ['LD_num_votes_%i' % i for i in range(5)]].as_matrix()
     df['LD_average'] = (mat * np.array([np.arange(5) + 1])).sum(1) / mat.sum(1)
     df.plot.scatter('average_rating', 'LD_average',
@@ -146,29 +164,32 @@ if PLOT:
         "add", lambda sel: sel.annotation.set_text(labels[sel.target.index]))
 
 # correlation
-cats=['yearpublished','maxplaytime','users_rated',\
-      'average_rating','average_weight', 'LD_average'] + \
-     ['poll_{}p_{}'.format(n, cat) for n in range(1, 7) for cat in ['NR']]
-cor=df.loc[:,cats].corr(min_periods=30)
-f,ax=plt.subplots()
-plt.imshow(cor,interpolation='none')
-plt.colorbar()
-ax.set_xticks(range(len(cats)))
-ax.set_xticklabels(cats,rotation=90)
-ax.set_yticks(range(len(cats)))
-ax.set_yticklabels(cats,rotation=0)
+CORR=0
+if CORR:
+    cats=['yearpublished','maxplaytime','users_rated',\
+          'average_rating','average_weight', 'LD_average'] + \
+         ['poll_{}p_{}'.format(n, cat) for n in range(1, 7) for cat in ['NR']]
+    cor=df.loc[:,cats].corr(min_periods=30)
+    f,ax=plt.subplots()
+    plt.imshow(cor,interpolation='none')
+    plt.colorbar()
+    ax.set_xticks(range(len(cats)))
+    ax.set_xticklabels(cats,rotation=90)
+    ax.set_yticks(range(len(cats)))
+    ax.set_yticklabels(cats,rotation=0)
 
-
-### print list
-df1=df[(df['2p_b_percent'] > 0.4)&
-       (df['maxplaytime'] < 90) &
-       (df['yearpublished'] > 2012)
-]
-df1.reset_index(drop=True)
-print(
-    df1.sort_values('average_rating')\
-          [['name', 'average_rating']]\
-          [-15:]
-)
+LIST=0
+if LIST:
+    # list of games good for N players
+    df1=df[(df['2p_b_percent'] > 0.4)&
+           (df['maxplaytime'] < 60) &
+           (df['yearpublished'] > 2012)
+    ]
+    df1.reset_index(drop=True)
+    print(
+        df1.sort_values('average_rating')\
+              [['name', 'average_rating']]\
+              [-15:]
+    )
 
 
