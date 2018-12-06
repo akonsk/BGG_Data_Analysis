@@ -1,10 +1,14 @@
+import os
 import pandas as pd
 import numpy as np
 import pylab as plt
 from mpl_toolkits.mplot3d import Axes3D
 import mplcursors
+import matplotlib as mpl
+from adjustText import adjust_text
+
 from get_games_info import mine_games_info
-import os
+
 
 
 MINE_INFO_FROM_BGG = 0
@@ -30,6 +34,8 @@ for i in range(2,11):
 mat = df.loc[:, ['LD_num_votes_%i' % i for i in range(5)]].as_matrix()
 df['LD_average'] = (mat * np.array([np.arange(5) + 1])).sum(1) / mat.sum(1)
 
+# turn publishers back to lists
+df['publishers'] = df['publishers'].map(eval)
 
 # n_v=df1.as_matrix(['num_voters'])
 # h,l=np.histogram(n_v,50)
@@ -103,9 +109,9 @@ def n_players_plot(df, num_p, metric='geo', Nvoters_threshold = 100):
                        aspect=(xmax - xmin) / (ymax - ymin))
             plt.title('%ip games' % num_p[0])
 
-for n in [2]:
-    n_players_plot(df, n)
 
+for n in []:
+    n_players_plot(df, n)
 
 PLOT=0
 if PLOT:
@@ -186,15 +192,41 @@ if CORR:
 LIST=0
 if LIST:
     # list of games good for N players
-    df1=df[(df['2p_b_percent'] > 0.4)&
+    df1=df[(df['6p_b_percent'] > 0.4)&
            (df['maxplaytime'] < 60) &
-           (df['yearpublished'] > 2012)
+           (df['yearpublished'] > 201)
     ]
     df1.reset_index(drop=True)
     print(
         df1.sort_values('average_rating')\
               [['name', 'average_rating']]\
-              [-15:]
+              [-30:]
     )
+if 1: #PLOT:
+    # plot related games
+    df1=df[['Catan' in name for name in df['name'].values]
+           ].reset_index(drop=True)
+    df1.plot.scatter('average_rating','average_weight',
+                     c=df1['users_rated'],cmap='jet',
+                     norm=mpl.colors.LogNorm())
+    labels = df1['name'].values
 
+    PUBLISH=0
+    if PUBLISH:
+        texts=[plt.text(df1['average_rating'][i],df1['average_weight'][i],txt,
+                     fontsize=6) for i,txt in enumerate(labels)]
+        adjust_text(texts,arrowprops=dict(arrowstyle='->', color='gray'),
+                    autoalign='y')
+    else:
+        mplcursors.cursor(hover=True).connect(
+            "add", lambda sel: sel.annotation.set_text(labels[sel.target.index]))
 
+if PLOT:
+    # print games of publisher
+    publishers = df['publishers'].tolist()
+    publishers = [[st.lower() for st in l] for l in publishers]
+    inds = [any(['rio grande' in st for st in l]) for l in publishers]
+    df2 = df[inds].reset_index(drop=True)
+    df2 = df2.sort_values('average_rating').reset_index(drop=True)
+    for a in df2.loc[-20:,['name','average_rating']].values:
+        print (a)

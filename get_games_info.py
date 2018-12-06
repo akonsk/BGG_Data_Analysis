@@ -74,7 +74,7 @@ def mine_games_info(path_ids=''):
       ['id', 'type', 'name', 'yearpublished', 'minplayers', 'maxplayers', 'playingtime',
        'minplaytime', 'maxplaytime', 'minage', 'users_rated', 'average_rating',
        'bayes_average_rating', 'total_owners', 'total_traders', 'total_wanters',
-       'total_wishers', 'total_comments', 'total_weights', 'average_weight']
+       'total_wishers', 'total_comments', 'total_weights', 'average_weight','publishers']
     + ['poll_{}p_{}'.format(n, cat) for n in range(1, 11) for cat in ['B', 'R', 'NR']]
     + ['totalvotes_numPlayers']
     + ['LD_num_votes_{}'.format(i) for i in range(5)]
@@ -110,10 +110,11 @@ def mine_games_info(path_ids=''):
             avgweight = get_val(item.statistics.ratings, 'averageweight')
             numPlayers_poll_results = get_numPlayers_poll_results(item)
             langDep_poll_results = get_langDep_poll_results(item)
+            publishers = [a['value'] for a in item('link',type='boardgamepublisher')]
 
             df.loc[i+i1]=[gid, gtype, gname, gyear, gmin, gmax, gplay, gminplay, gmaxplay, gminage,
                              usersrated, avg, bayesavg, owners, traders, wanters, wishers, numcomments,
-                             numweights, avgweight] + numPlayers_poll_results + langDep_poll_results
+                             numweights, avgweight, publishers] + numPlayers_poll_results + langDep_poll_results \
 
             time.sleep(max(0, (1 - (time.time() - t))))
 
