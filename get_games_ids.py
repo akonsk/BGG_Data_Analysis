@@ -10,15 +10,15 @@ def request(msg, slp=1):
     '''A wrapper to make robust https requests.'''
     status_code = 500  # Want to get a status-code of 200
     while status_code != 200:
-        sleep(slp)  # Don't ping the server too often
         try:
             r = requests.get(msg)
             status_code = r.status_code
             if status_code != 200:
                 print("Server Error! Response Code %i. Retrying..." % (r.status_code))
         except:
-            print("An exception has occurred, probably a momentory loss of connection. Waiting one seconds...")
-            sleep(1)
+            print("An exception has occurred, probably a momentory loss of connection. Trying again...")
+        if status_code != 200:
+            sleep(slp)  # Don't ping the server too often
     return r
 
 
@@ -33,7 +33,9 @@ def get_games_ids():
     min_nrate = 1e5
     while min_nrate >= min_rate:
         # Get full HTML for a specific page in the full listing of boardgames sorted by
+        t=time.time()
         r = request("https://boardgamegeek.com/browse/boardgame/page/%i?sort=numvoters&sortdir=desc" % (npage,))
+        print('request time: {:.2f}s'.format(time.time() - t))
         t=time.time()
         soup = BeautifulSoup(r.text, "html.parser")
 
