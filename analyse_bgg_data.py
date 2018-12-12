@@ -177,12 +177,12 @@ if PLOT:
 # correlation
 CORR=0
 if CORR:
-    cats=['yearpublished','maxplaytime','users_rated',\
+    cats=['yearpublished','maxplaytime','users_rated', 'stddev',\
           'average_rating','average_weight', 'LD_average'] + \
-         ['poll_{}p_{}'.format(n, cat) for n in range(1, 7) for cat in ['NR']]
+         ['{}p_{}_percent'.format(n, cat) for n in range(2, 7) for cat in ['nr']]
     cor=df.loc[:,cats].corr(min_periods=30)
     f,ax=plt.subplots()
-    plt.imshow(cor,interpolation='none')
+    plt.imshow(np.abs(cor),interpolation='none',cmap='jet')
     plt.colorbar()
     ax.set_xticks(range(len(cats)))
     ax.set_xticklabels(cats,rotation=90)
@@ -202,21 +202,25 @@ if LIST:
               [['name', 'average_rating']]\
               [-30:]
     )
-if 1: #PLOT:
+if PLOT:
     # plot related games
-    df1=df[['Catan' in name for name in df['name'].values]
+    name = 'dominion'
+    df1 = df[[name in gamename.lower() for gamename in df['name'].values]
            ].reset_index(drop=True)
     df1.plot.scatter('average_rating','average_weight',
                      c=df1['users_rated'],cmap='jet',
                      norm=mpl.colors.LogNorm())
     labels = df1['name'].values
 
-    PUBLISH=0
+    PUBLISH=1
     if PUBLISH:
+        fig=plt.gcf()
+        fig.set_size_inches(15.36,8)
+        _ = fig.canvas.manager.window.wm_geometry('+-10+0')
         texts=[plt.text(df1['average_rating'][i],df1['average_weight'][i],txt,
-                     fontsize=6) for i,txt in enumerate(labels)]
-        adjust_text(texts,arrowprops=dict(arrowstyle='->', color='gray'),
-                    autoalign='y')
+                     fontsize=8) for i, txt in enumerate(labels)]
+        adjust_text(texts,arrowprops=dict(arrowstyle='-', color='gray'),
+                    autoalign='xy')
     else:
         mplcursors.cursor(hover=True).connect(
             "add", lambda sel: sel.annotation.set_text(labels[sel.target.index]))

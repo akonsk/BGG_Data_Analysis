@@ -72,7 +72,7 @@ def mine_games_info(path_ids=''):
     fname = os.path.join(os.getcwd(), 'games.csv')
     df = pd.DataFrame(columns=
       ['id', 'type', 'name', 'yearpublished', 'minplayers', 'maxplayers', 'playingtime',
-       'minplaytime', 'maxplaytime', 'minage', 'users_rated', 'average_rating',
+       'minplaytime', 'maxplaytime', 'minage', 'users_rated', 'average_rating', 'stddev',
        'bayes_average_rating', 'total_owners', 'total_traders', 'total_wanters',
        'total_wishers', 'total_comments', 'total_weights', 'average_weight','publishers']
     + ['poll_{}p_{}'.format(n, cat) for n in range(1, 11) for cat in ['B', 'R', 'NR']]
@@ -100,6 +100,7 @@ def mine_games_info(path_ids=''):
             gminage = get_val(item, 'minage')
             usersrated = get_val(item.statistics.ratings, 'usersrated')
             avg = get_val(item.statistics.ratings, 'average')
+            stddev = get_val(item.statistics.ratings, 'stddev')
             bayesavg = get_val(item.statistics.ratings, 'bayesaverage')
             owners = get_val(item.statistics.ratings, 'owned')
             traders = get_val(item.statistics.ratings, 'trading')
@@ -113,7 +114,7 @@ def mine_games_info(path_ids=''):
             publishers = [a['value'] for a in item('link',type='boardgamepublisher')]
 
             df.loc[i+i1]=[gid, gtype, gname, gyear, gmin, gmax, gplay, gminplay, gmaxplay, gminage,
-                             usersrated, avg, bayesavg, owners, traders, wanters, wishers, numcomments,
+                             usersrated, avg, stddev, bayesavg, owners, traders, wanters, wishers, numcomments,
                              numweights, avgweight, publishers] + numPlayers_poll_results + langDep_poll_results \
 
             time.sleep(max(0, (1 - (time.time() - t))))
