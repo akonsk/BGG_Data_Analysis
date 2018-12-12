@@ -11,8 +11,8 @@ from get_games_info import mine_games_info
 
 
 
-MINE_INFO_FROM_BGG = 0
-path_gameIDs = os.path.join(os.getcwd(), 'bgg_gamelist.csv')
+MINE_INFO_FROM_BGG = 1
+path_gameIDs = '' #os.path.join(os.getcwd(), 'bgg_gamelist.csv')
 if MINE_INFO_FROM_BGG:
     data_path = mine_games_info(path_gameIDs)
 else:

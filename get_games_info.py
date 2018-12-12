@@ -1,9 +1,10 @@
 import time
 import pandas as pd
-import requests
+from get_games_ids import request
 from bs4 import BeautifulSoup
 from get_games_ids import get_games_ids
 import os
+
 
 def isnum(string):
     try:
@@ -34,7 +35,8 @@ def get_numPlayers_poll_results(item):
     if poll_numPlayers_item['name'] == 'suggested_numplayers':
         result_items = poll_numPlayers_item('result')
         poll_results = [it['numvotes'] for it in result_items]
-        assert(len(poll_results)%3==0,'poll_results is not a multiple of 3')
+        assert len(poll_results) % 3 == 0,\
+            'poll_results is not a multiple of 3'
 
     poll_results += ['NaN']*(10*3-len(poll_results))
     poll_results = poll_results[:10*3]
@@ -52,7 +54,8 @@ def get_langDep_poll_results(item):
     if poll['name'] == 'language_dependence':
         result_items = poll('result')
         poll_results = [it['numvotes'] for it in result_items]
-        assert(len(poll_results) == 5,'poll_results length is less than 5')
+        assert len(poll_results) == 5,\
+            'poll_results length is less than 5'
 
     poll_results += ['NaN']*(5-len(poll_results))
 
@@ -82,8 +85,9 @@ def mine_games_info(path_ids=''):
     for i in range(0, len(ids), split):
         url = base.format(','.join([str(id) for id in ids[i:i+split]]))
         print('Requesting {}'.format(url))
+        print('games %i - %i' % (i+1,i+split))
         t = time.time()
-        req = requests.get(url)
+        req = request(url)
         print('request time: {:.2f}s'.format(time.time()-t))
         soup = BeautifulSoup(req.content, 'xml')
         items = soup.find_all('item')
