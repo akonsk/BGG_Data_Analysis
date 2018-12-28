@@ -12,9 +12,9 @@ from get_games_info import mine_games_info
 
 
 MINE_INFO_FROM_BGG = 0
-path_gameIDs = os.path.join(os.getcwd(), 'bgg_gamelist.csv')
-# path_gameIDs = ''
 if MINE_INFO_FROM_BGG:
+    path_gameIDs = os.path.join(os.getcwd(), 'bgg_gamelist.csv')
+    # path_gameIDs = ''
     data_path = mine_games_info(path_gameIDs)
 else:
     data_path = os.path.join(os.getcwd(),'games.csv')
@@ -159,7 +159,9 @@ if PLOT:
 if PLOT:
     # average_weight Vs average_rating
     df.plot.scatter('average_rating', 'average_weight',
-                    marker='x', s=10)
+                    marker='x', s=10,
+                    c=df['users_rated'], cmap='jet',
+                    norm=mpl.colors.LogNorm())
     labels = df['name']
     mplcursors.cursor(hover=True).connect(
         "add", lambda sel: sel.annotation.set_text(labels[sel.target.index]))
@@ -196,8 +198,7 @@ if LIST:
     df1=df[(df['6p_b_percent'] > 0.4)&
            (df['maxplaytime'] < 60) &
            (df['yearpublished'] > 201)
-    ]
-    df1.reset_index(drop=True)
+    ].reset_index(drop=True)
     print(
         df1.sort_values('average_rating')\
               [['name', 'average_rating']]\
