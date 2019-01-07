@@ -9,13 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import sqlite3
 
-df=pd.read_csv('bgg_gamelist.csv')
-df_toy=df.loc[(1000 < df["nrate"]) * (df["nrate"] < 1200), ].copy()
-
-connex = sqlite3.connect("bgg_ratings.db")  # Opens file if exists, else creates file
-cur = connex.cursor()  # This object lets us actually send messages to our DB and receive results
-sql="SELECT * FROM data;"
-df_ratings=pd.read_sql_query(sql, connex)
+CHECK_SANITY=0
 
 def check_sanity(df_toy,df_ratings):
     fig, axs = plt.subplots(figsize=[16, 4], nrows=1, ncols=3)
@@ -35,8 +29,18 @@ def check_sanity(df_toy,df_ratings):
         print("%s Server Stats: Mean = %.2f. StdDev = %.2f" % (nm, mn, std))
         sleep(1.5)
 
-# check_sanity(df_toy,df_ratings)
+connex = sqlite3.connect("bgg_ratings.db")  # Opens file if exists, else creates file
+cur = connex.cursor()  # This object lets us actually send messages to our DB and receive results
 
+if CHECK_SANITY:
+    df = pd.read_csv('bgg_gamelist.csv')
+    df_toy = df.loc[(200 < df["nrate"]) * (df["nrate"] < 1e10),].copy()
+
+    sql = "SELECT * FROM data;"
+    df_ratings = pd.read_sql_query(sql, connex)
+
+    check_sanity(df_toy,df_ratings)
+print('Retrieve usernames')
 # Retrieve usernames for all users with < 20 ratings in the DB
 thr_ratings = 20
 sql = " ".join((
@@ -45,20 +49,20 @@ sql = " ".join((
     "AS tbl WHERE freqn < %i" % thr_ratings,
 ))
 users = pd.read_sql_query(sql, connex)
-
+print('dropping users')
 # Drop all the rows for the above list of users
 usrs = ["'" + usr + "'" for usr in users["username"].values]
 str_matching = "(" + ",".join(usrs) + ")"  # Construct the string of SQL language
 sql = "DELETE FROM data WHERE username IN " + str_matching + ";"
 cur.execute(sql)
-
+print('loading full data')
 # Load full data set into RAM
 sql = "SELECT * FROM data"
 df = pd.read_sql_query(sql, connex)
 
-print('len before drop: %i' % len(df))
+print('len before duplicate drop: %i' % len(df))
 df.drop_duplicates(inplace=True)
-print('len after drop: %i' % len(df))
+print('len after duplicate drop: %i' % len(df))
 
 # Calculate sparsity of ratings data
 max_n_ratings = len(df["gameid"].unique())*len(df["username"].unique())

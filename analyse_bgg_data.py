@@ -206,7 +206,7 @@ if LIST:
     )
 if PLOT:
     # plot related games
-    name = 'dominion'
+    name = 'catan'
     df1 = df[[name in gamename.lower() for gamename in df['name'].values]
            ].reset_index(drop=True)
     df1.plot.scatter('average_rating','average_weight',

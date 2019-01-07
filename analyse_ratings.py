@@ -8,17 +8,21 @@ import sqlite3
 import numpy as np
 from scipy import stats
 from sklearn.metrics import mean_squared_error
+import time
 import timeit
 import pickle
 import scipy.io
+from sparse_pearson_cor import nan_sparse_pearson_correlation
+
 
 connex = sqlite3.connect("bgg_ratings_recommender_deduplicated_toy.db")  # Opens file if exists, else creates file
 sql = "SELECT * FROM data"
 df = pd.read_sql_query(sql, connex)
 connex.close()
 
-AN=0
-if AN:
+ANALYSIS=0
+#
+if ANALYSIS:
     gameid = 21892
     users = df.loc[df["gameid"] == gameid, "username"].values  # list of all users who rated this game
     df_sample = df[df["username"].isin(users)]  # all ratings for all games from users who rated this game
@@ -30,7 +34,7 @@ if AN:
 
     # look at the histogram of the values of the cor matrix
     # Look at just the upper triangular submatrix (excluding the diagonal)since matrix is symmetric.
-    Xcorr = corrs.as_matrix()
+    Xcorr = corrs.values
     np.fill_diagonal(Xcorr, np.nan)
 
     fig, ax = plt.subplots()
@@ -39,7 +43,7 @@ if AN:
     trash = ax.hist(Xcorr[~np.isnan(Xcorr)], bins=40)
 
     # Number of Rated Games in Common
-    X = df_pivot.as_matrix()  # get values as a numpy matrix
+    X = df_pivot.values  # get values as a numpy matrix
     # Make a matrix holding number of common games rated between users (i, j)
     m1 = (~np.isnan(X)).astype(np.float64)  # zeroes for missing ratings, one elsewhere
     shared = np.dot(m1, m1.T)
@@ -84,10 +88,10 @@ if AN:
 ##########################
 # recommendation system
 ##########################
-# pick all users that voted for a game
 
 def compute_similarity(gameid, simtype="pearson",
-                       beta=7, min_shared_votes=4):
+                       beta=7, min_shared_votes=4,
+                       silent=True):
     """
     Compute the similarity between every pair of users from the set of all users who rated the game 'gameid'.
     """
@@ -96,16 +100,28 @@ def compute_similarity(gameid, simtype="pearson",
     df_sample = df[df["username"].isin(users)]
 
     # Pivot to matrix (user x game) and then get a correlation marix
+    t = time.time()
     df_ratings = df_sample.pivot_table(index="username", columns="gameid", values="rating")
 
+    if not silent:
+        print('time for pivot table: %.2f' % (time.time()-t))
+        print('pt size:')
+        print(df_ratings.shape)
     if simtype == "pearson":
-        sims = df_ratings.transpose().corr(min_periods=min_shared_votes)
+        t = time.time()
+        # sims = df_ratings.transpose().corr(min_periods=min_shared_votes)
+        sims = nan_sparse_pearson_correlation(
+            df_ratings.values, min_periods=min_shared_votes)
+        sims = pd.DataFrame(sims)  # for compatability with original code
+
+        if not silent:
+            print('time for cor matrix: %.2f' % (time.time() - t))
     elif simtype == "uncertainty_discounted_pearson":
         # First compute standard pearson correlation
         sims = df_ratings.transpose().corr(min_periods=4)
 
         # Make a matrix holding number of common games rated between users (i, j)
-        X = df_ratings.as_matrix()  # get values as a numpy matrix
+        X = df_ratings.values  # get values as a numpy matrix
         m1 = (~np.isnan(X)).astype(np.float64)  # zeroes for missing ratings, one elsewhere
         shared = np.dot(m1, m1.T)
 
@@ -128,7 +144,7 @@ def predict_ratings(sims, df_ratings, gameid, k=5):
     """
 
     # Identify k nearest neighbors based on similarity
-    X = sims.fillna(-1).as_matrix()
+    X = sims.fillna(-1).values
     np.fill_diagonal(X, -1)
     k_nearest_indcs = np.argsort(X, axis=1)[:,-k:]  # Return matrix where each row holds index order that would sort that row
 
@@ -139,7 +155,7 @@ def predict_ratings(sims, df_ratings, gameid, k=5):
     df_ratings = df_ratings.subtract(user_means, axis=0)
 
     # Get ratings from the k nearest neighbors of each user
-    ratings = df_ratings.as_matrix()
+    ratings = df_ratings.values
     neighbor_ratings = np.zeros(
         k_nearest_indcs.shape)  # Each row holds the ratings from the k nearest neighbors for that user
     this_movie_indx = df_ratings.columns.get_loc(gameid)  # Column int pos'n of movie we are predicting ratings for
@@ -184,47 +200,64 @@ def analyze_errors(df_ratings, predicted, gameid, silent=False):
         print("Mean Squared Error of naive mean game rating estimator is %.2f" % (mse_naive,))
         return ax, mse_algo, mse_naive
 
-gameid = 21892
 
-sims, df_ratings = compute_similarity(gameid)
-predicted = predict_ratings(sims, df_ratings, gameid, k=5)
-analyze_errors(df_ratings, predicted, gameid)
+# # analyze all games
+# MSEalgo=[]
+# MSEnaive=[]
+# for i,gameid in enumerate(df['gameid'].unique()):
+#     sims, df_ratings = compute_similarity(gameid,silent=0)
+#     predicted = predict_ratings(sims, df_ratings, gameid, k=5)
+#     mse_algo, mse_naive = analyze_errors(df_ratings, predicted, gameid, silent=1)
+#     MSEalgo.append(mse_algo)
+#     MSEnaive.append(mse_naive)
+#     if i%10==0:
+#         print(i)
+
 
 # analyze k effect
 #TODO: try on larger dataset, and sum all games
-ks = np.arange(1, 300, 1)
-mses_basic = [0]*len(ks)
-for idx, k in enumerate(ks):
-    predicted_basic = predict_ratings(sims, df_ratings, gameid, k=k)
-    mses_basic[idx] = analyze_errors(df_ratings, predicted_basic, gameid, silent=True)[0]
 
-fig, ax = plt.subplots()
-plt.title("k neighbors")
-plt.ylabel("MSE")
-plt.xlabel("Performance vs k for PC")
-ax.plot(ks, mses_basic, color="red", label="algorithm")
-plt.axhline(analyze_errors(df_ratings, predicted_basic, gameid, silent=True)[1], color="blue", label="game mean rating estimator")
-ax.legend(loc="center right")
+gameid = 2
 
+sims, df_ratings = compute_similarity(gameid,silent=False)
+predicted = predict_ratings(sims, df_ratings, gameid, k=5)
+analyze_errors(df_ratings, predicted, gameid)
 
-# analyze beta effect
-fig, ax = plt.subplots()
-plt.title("k neighbors")
-plt.ylabel("MSE")
-plt.xlabel("Performance vs k for Weighted PC")
+# ks = np.arange(1, 20, 1)
+# mses_basic = [0]*len(ks)
+# for idx, k in enumerate(ks):
+#     predicted_basic = predict_ratings(sims, df_ratings, gameid, k=k)
+#     mses_basic[idx] = analyze_errors(df_ratings, predicted_basic, gameid, silent=True)[0]
+#     if idx%20==0 or idx==5 or idx==10:
+#         print(idx)
+#
+# fig, ax = plt.subplots()
+# plt.title("k neighbors")
+# plt.ylabel("MSE")
+# plt.xlabel("Performance vs k for PC")
+# ax.plot(ks, mses_basic, color="red", label="algorithm")
+# plt.axhline(analyze_errors(df_ratings, predicted_basic, gameid, silent=True)[1], color="blue", label="game mean rating estimator")
+# ax.legend(loc="center right")
 
-# Plot the weighted PCs vs. k for different values of beta
-for beta in np.arange(3, 12, 2):
-    sims, df_ratings = compute_similarity(gameid, simtype="uncertainty_discounted_pearson", beta=beta)
-    ks = np.arange(5, 25, 1)
-    mses = [0]*len(ks)
-    for idx, k in enumerate(ks):
-        predicted = predict_ratings(sims, df_ratings, gameid, k=k)
-        mses[idx] = analyze_errors(df_ratings, predicted, gameid, silent=True)[0]
-    ax.plot(ks, mses, label="Discounted PC beta = %i" % (beta,))
-
-# Plot the unweighted PC and naive mean rating estimator vs. k
-ax.plot(np.arange(1, 300, 1), mses_basic, color="red", label="Undiscounted PC")
-ax.set_xlim([5, 40])
-ax.set_ylim([0.47, 0.6])
-ax.legend(loc="lower right")
+#
+# # analyze beta effect
+# fig, ax = plt.subplots()
+# plt.title("k neighbors")
+# plt.ylabel("MSE")
+# plt.xlabel("Performance vs k for Weighted PC")
+#
+# # Plot the weighted PCs vs. k for different values of beta
+# for beta in np.arange(3, 12, 2):
+#     sims, df_ratings = compute_similarity(gameid, simtype="uncertainty_discounted_pearson", beta=beta)
+#     ks = np.arange(5, 25, 1)
+#     mses = [0]*len(ks)
+#     for idx, k in enumerate(ks):
+#         predicted = predict_ratings(sims, df_ratings, gameid, k=k)
+#         mses[idx] = analyze_errors(df_ratings, predicted, gameid, silent=True)[0]
+#     ax.plot(ks, mses, label="Discounted PC beta = %i" % (beta,))
+#
+# # Plot the unweighted PC and naive mean rating estimator vs. k
+# ax.plot(np.arange(1, 300, 1), mses_basic, color="red", label="Undiscounted PC")
+# ax.set_xlim([5, 40])
+# ax.set_ylim([0.47, 0.6])
+# ax.legend(loc="lower right")
