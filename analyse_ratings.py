@@ -102,7 +102,9 @@ def compute_similarity(gameid, simtype="pearson",
     # Pivot to matrix (user x game) and then get a correlation marix
     t = time.time()
     df_ratings = df_sample.pivot_table(index="username", columns="gameid", values="rating")
-
+    # keep only users that rated at least min_shared_votes games
+    keep_inds = (~np.isnan(df_ratings.values)).sum(1) > min_shared_votes
+    df_ratings = df_ratings[keep_inds]
     if not silent:
         print('time for pivot table: %.2f' % (time.time()-t))
         print('pt size:')
@@ -152,7 +154,10 @@ def predict_ratings(sims, df_ratings, gameid, k=5):
     #TODO: try changing center subtraction to mean of KNN,
     #TODO: then adding the user mean. std as well.
     user_means = df_ratings.mean(axis=1)
+    user_stds = df_ratings.std(axis=1) + 1e-100
+    assert ~(np.isnan(user_stds.values).any()), 'users with only 1 rating'
     df_ratings = df_ratings.subtract(user_means, axis=0)
+    df_ratings = df_ratings.divide(user_stds, axis=0)
 
     # Get ratings from the k nearest neighbors of each user
     ratings = df_ratings.values
@@ -163,7 +168,7 @@ def predict_ratings(sims, df_ratings, gameid, k=5):
         neighbor_ratings[:, col] = ratings[neighbor_indxs, this_movie_indx]
 
     # Make a prediction based on unweighted average of k nearest neighbors (and "uncenter")
-    predicted = user_means + neighbor_ratings.mean(axis=1)  # Average the neighbors ratings and "uncenter"
+    predicted = user_means + user_stds * neighbor_ratings.mean(axis=1)  # Average the neighbors ratings and "uncenter"
 
     return predicted
 
