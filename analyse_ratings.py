@@ -23,7 +23,7 @@ connex.close()
 ANALYSIS=0
 #
 if ANALYSIS:
-    gameid = 21892
+    gameid = 1
     users = df.loc[df["gameid"] == gameid, "username"].values  # list of all users who rated this game
     df_sample = df[df["username"].isin(users)]  # all ratings for all games from users who rated this game
     df_pivot = df_sample.pivot_table(index="username", columns="gameid", values="rating")  # pivot to matrix (user x game) matrix
@@ -96,7 +96,12 @@ def compute_similarity(gameid, simtype="pearson",
     Compute the similarity between every pair of users from the set of all users who rated the game 'gameid'.
     """
     # Restrict to all users who rated this game and all games rated by this set of users
-    users = df.loc[df["gameid"] == gameid, "username"].values
+    users = df.loc[df["gameid"] == gameid, "username"]
+    if users.shape[0]>20000:
+        users = users.sample(20000)
+        print('gameid {} had {} ratings, cut to 20k'
+              .format(gameid,users.shape[0]))
+    users = users.values
     df_sample = df[df["username"].isin(users)]
 
     # Pivot to matrix (user x game) and then get a correlation marix
@@ -105,6 +110,8 @@ def compute_similarity(gameid, simtype="pearson",
     # keep only users that rated at least min_shared_votes games
     keep_inds = (~np.isnan(df_ratings.values)).sum(1) > min_shared_votes
     df_ratings = df_ratings[keep_inds]
+    # omit users that gave the same rating to all games
+    df_ratings = df_ratings[df_ratings.std(1)!=0]
     if not silent:
         print('time for pivot table: %.2f' % (time.time()-t))
         print('pt size:')
@@ -144,15 +151,14 @@ def predict_ratings(sims, df_ratings, gameid, k=5):
     Find the k nearest neighbors of a user in terms of the similarities 'sims' and use those users ratings to
     make a prediction for the rating of the game 'gameid' by each user.
     """
-
     # Identify k nearest neighbors based on similarity
     X = sims.fillna(-1).values
     np.fill_diagonal(X, -1)
+
     k_nearest_indcs = np.argsort(X, axis=1)[:,-k:]  # Return matrix where each row holds index order that would sort that row
+    # k_nearest_sims = np.sort(X, axis=1)[:, -k:]
 
     # Center the ratings
-    #TODO: try changing center subtraction to mean of KNN,
-    #TODO: then adding the user mean. std as well.
     user_means = df_ratings.mean(axis=1)
     user_stds = df_ratings.std(axis=1) + 1e-100
     assert ~(np.isnan(user_stds.values).any()), 'users with only 1 rating'
@@ -206,29 +212,30 @@ def analyze_errors(df_ratings, predicted, gameid, silent=False):
         return ax, mse_algo, mse_naive
 
 
-# # analyze all games
-# MSEalgo=[]
-# MSEnaive=[]
-# for i,gameid in enumerate(df['gameid'].unique()):
-#     sims, df_ratings = compute_similarity(gameid,silent=0)
-#     predicted = predict_ratings(sims, df_ratings, gameid, k=5)
-#     mse_algo, mse_naive = analyze_errors(df_ratings, predicted, gameid, silent=1)
-#     MSEalgo.append(mse_algo)
-#     MSEnaive.append(mse_naive)
-#     if i%10==0:
-#         print(i)
+# analyze all games
+MSEalgo=[]
+MSEnaive=[]
+for i,gameid in enumerate(df['gameid'].unique()):
+    sims, df_ratings = compute_similarity(gameid,silent=1)
+    predicted = predict_ratings(sims, df_ratings, gameid, k=5)
+    mse_algo, mse_naive = analyze_errors(df_ratings, predicted, gameid, silent=1)
+    del sims,df_ratings
+    MSEalgo.append(mse_algo)
+    MSEnaive.append(mse_naive)
+    if i%10==0:
+        print(i)
 
 
 # analyze k effect
 #TODO: try on larger dataset, and sum all games
 
-gameid = 2
-
-sims, df_ratings = compute_similarity(gameid,silent=False)
-predicted = predict_ratings(sims, df_ratings, gameid, k=5)
-analyze_errors(df_ratings, predicted, gameid)
-
-# ks = np.arange(1, 20, 1)
+# gameid = 3
+#
+# sims, df_ratings = compute_similarity(gameid,silent=False)
+# predicted = predict_ratings(sims, df_ratings, gameid, k=5)
+# analyze_errors(df_ratings, predicted, gameid)
+#
+# ks = np.arange(1, 30, 1)
 # mses_basic = [0]*len(ks)
 # for idx, k in enumerate(ks):
 #     predicted_basic = predict_ratings(sims, df_ratings, gameid, k=k)
@@ -244,7 +251,7 @@ analyze_errors(df_ratings, predicted, gameid)
 # plt.axhline(analyze_errors(df_ratings, predicted_basic, gameid, silent=True)[1], color="blue", label="game mean rating estimator")
 # ax.legend(loc="center right")
 
-#
+
 # # analyze beta effect
 # fig, ax = plt.subplots()
 # plt.title("k neighbors")

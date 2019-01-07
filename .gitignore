@@ -2,3 +2,5 @@
 .idea
 *.csv
 *.bu
+*.db
+*.txt
