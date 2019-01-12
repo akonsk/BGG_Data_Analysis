@@ -13,7 +13,6 @@ def nan_sparse_pearson_correlation(x, y=None, min_periods=None):
     :param min_periods: Minimum number of observations required per pair of rows to have a valid result
     :return:
     '''
-    t = time.time()
     x = x.astype('float32')
     # calculate sparse centered x
     x_submean = x - np.expand_dims(np.nanmean(x, 1), 1)
@@ -35,11 +34,15 @@ def nan_sparse_pearson_correlation(x, y=None, min_periods=None):
     else:
         y_submean = y - np.nanmean(y)
         y_sp = sparse.csr_matrix(np.nan_to_num(y_submean))
-        cov = x_sp.dot(y_sp.T).toarray().squeeze()
 
-        y_std = np.sqrt((y_sp.power(2)).sum())
-        x_std = np.sqrt((x_sp.power(2).toarray()).sum(1)).squeeze()
+        notnan_x = sparse.csr_matrix((~np.isnan(x) * 1).astype('uint16'))
+        notnan_y = sparse.csr_matrix((~np.isnan(y) * 1).astype('uint16'))
+
+        y_std = np.sqrt(y_sp.power(2).dot(notnan_x.T).toarray()).squeeze()
+        x_std = np.sqrt(x_sp.power(2).dot(notnan_y.T).toarray()).squeeze()
         var_mat = x_std * y_std + 1e-38
+
+        cov = x_sp.dot(y_sp.T).toarray().squeeze()
 
     PC = cov/var_mat
     if min_periods:
@@ -68,7 +71,7 @@ if __name__=='__main__':
     # filter users that rated less than 4 games
     pt=pt[((~np.isnan(pt)).sum(1)>=4)]
 
-    n_users=1000
+    n_users=100
     n_games_rated = (~np.isnan(pt[:n_users])).sum(1)
     print(n_games_rated)
     CORS=[]
@@ -81,3 +84,4 @@ if __name__=='__main__':
         if i%10==0:
             print(i)
 
+    plt.scatter(n_games_rated,MAX_COR)
